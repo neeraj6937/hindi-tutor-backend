@@ -9,38 +9,29 @@ import FormData from "form-data";
 dotenv.config();
 
 const app = express();
+
+/* ---------- Ensure uploads folder exists ---------- */
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads");
+}
+
+/* ---------- Multer setup ---------- */
 const upload = multer({ dest: "uploads/" });
 
 app.use(cors());
+app.use(express.json());
 
+/* ---------- Health check (optional but useful) ---------- */
+app.get("/", (req, res) => {
+  res.send("Hindi Tutor Backend is running ✅");
+});
+
+/* ---------- Transcription endpoint ---------- */
 app.post("/transcribe", upload.single("audio"), async (req, res) => {
   try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No audio file uploaded" });
+    }
+
     const form = new FormData();
     form.append("file", fs.createReadStream(req.file.path));
-    form.append("model", "whisper-1");
-    form.append("language", "hi");
-
-    const response = await fetch(
-      "https://api.openai.com/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          ...form.getHeaders()
-        },
-        body: form
-      }
-    );
-
-    const data = await response.json();
-    fs.unlinkSync(req.file.path);
-
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: "Transcription failed" });
-  }
-});
-
-app.listen(3000, () => {
-  console.log("Server running");
-});
